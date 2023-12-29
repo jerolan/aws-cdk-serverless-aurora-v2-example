@@ -99,12 +99,12 @@ export class DatabaseClusterConstruct extends Construct {
       }
     );
 
-    // new SecretRotation(this, "SecretRotation", {
-    //   secret: secret,
-    //   application: SecretRotationApplication.MYSQL_ROTATION_SINGLE_USER,
-    //   vpc: this.vpc,
-    //   target: databaseCluster,
-    // });
+    new SecretRotation(this, "SecretRotation", {
+      secret: secret,
+      application: SecretRotationApplication.MYSQL_ROTATION_SINGLE_USER,
+      vpc: this.vpc,
+      target: databaseCluster,
+    });
 
     Aspects.of(databaseCluster).add({
       visit(node) {
