@@ -24,6 +24,7 @@ import {
   SecretRotationApplication,
 } from "aws-cdk-lib/aws-secretsmanager";
 
+// Constants for database configuration
 const DATABASE_MIN_CAPACITY = 1;
 const DATABASE_MAX_CAPACITY = 16;
 const BACKUP_RETENTION_DAYS = 35;
@@ -36,6 +37,15 @@ type DatabaseClusterConstructProps = {
   vpc: IVpc;
 };
 
+/**
+ * Constructs a new instance of the DatabaseClusterConstruct.
+ * This class creates and configures an Amazon RDS database cluster along with associated resources like security groups, secrets, and encryption keys.
+ * It sets up a serverless Aurora MySQL cluster with configurable scaling, backup retention, and secret rotation.
+ *
+ * @param {Construct} scope - The scope in which to define this construct.
+ * @param {string} id - The identifier for this construct.
+ * @param {DatabaseClusterConstructProps} props - The properties for the database cluster.
+ */
 export class DatabaseClusterConstruct extends Construct {
   readonly identifier: string = "DatabaseClusterConstruct";
   readonly publiclyAccessible: boolean = true;
@@ -52,11 +62,19 @@ export class DatabaseClusterConstruct extends Construct {
     this.props = props;
     this.vpc = props.vpc;
 
+    // Create security group for the database
     const securityGroup = this.createSecurityGroup();
+
+    // Create secret for database credentials
     const secret = this.createSecret();
+
+    // Create encryption key for storage
     const storageEncryptionKey = this.createEncryptionKey();
+
+    // Create credentials from the secret
     const credentials = Credentials.fromSecret(secret, DATABASE_USER);
 
+    // Define and create the database cluster
     const databaseCluster = new DatabaseCluster(
       this,
       this.getResourceIdentifier("DatabaseCluster"),
@@ -99,13 +117,15 @@ export class DatabaseClusterConstruct extends Construct {
       }
     );
 
-    new SecretRotation(this, "SecretRotation", {
+    // Set up secret rotation for the database
+    new SecretRotation(this, this.getResourceIdentifier("SecretRotation"), {
       secret: secret,
       application: SecretRotationApplication.MYSQL_ROTATION_SINGLE_USER,
       vpc: this.vpc,
       target: databaseCluster,
     });
 
+    // Apply scaling configuration to the database cluster
     Aspects.of(databaseCluster).add({
       visit(node) {
         if (node instanceof CfnDBCluster) {
@@ -117,6 +137,7 @@ export class DatabaseClusterConstruct extends Construct {
       },
     });
 
+    // Create a database proxy for the cluster
     new DatabaseProxy(this, this.getResourceIdentifier("DatabaseProxy"), {
       dbProxyName: this.getResourceName("DatabaseProxy"),
       proxyTarget: ProxyTarget.fromCluster(databaseCluster),
