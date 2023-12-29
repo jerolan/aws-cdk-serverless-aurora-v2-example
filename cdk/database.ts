@@ -109,6 +109,7 @@ export class DatabaseClusterConstruct extends Construct {
         defaultDatabaseName: this.getResourceName("DatabaseCluster"),
         removalPolicy: RemovalPolicy.SNAPSHOT,
         vpcSubnets: {
+          // WARNING: Public subnet configuration is not recommended for production environments. This is only for demonstration purposes.
           subnetType: SubnetType.PUBLIC,
         },
         engine: DatabaseClusterEngine.auroraMysql({
@@ -117,6 +118,7 @@ export class DatabaseClusterConstruct extends Construct {
         writer: ClusterInstance.serverlessV2(
           this.getResourceIdentifier("WriterClusterInstance"),
           {
+            // WARNING: publiclyAccessible is not recommended for production environments. This is only for demonstration purposes.
             publiclyAccessible: this.publiclyAccessible,
           }
         ),
@@ -124,6 +126,7 @@ export class DatabaseClusterConstruct extends Construct {
           ClusterInstance.serverlessV2(
             this.getResourceIdentifier("ReaderClusterInstance"),
             {
+              // WARNING: publiclyAccessible is not recommended for production environments. This is only for demonstration purposes.
               publiclyAccessible: this.publiclyAccessible,
               scaleWithWriter: true,
             }
