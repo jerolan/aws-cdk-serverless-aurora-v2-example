@@ -14,6 +14,7 @@ import {
   Credentials,
   DatabaseCluster,
   DatabaseClusterEngine,
+  ParameterGroup,
 } from "aws-cdk-lib/aws-rds";
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
@@ -80,6 +81,16 @@ export class DatabaseClusterConstruct extends Construct {
     // Create credentials from the secret
     const credentials = Credentials.fromSecret(secret, DATABASE_USER);
 
+    // Create parameter group for the database
+    const parameterGroup = new ParameterGroup(this, "MyParameterGroup", {
+      engine: DatabaseClusterEngine.auroraMysql({
+        version: AuroraMysqlEngineVersion.VER_3_02_0,
+      }),
+      parameters: {
+        binlog_format: "MIXED",
+      },
+    });
+
     // Define and create the database cluster
     const databaseCluster = new DatabaseCluster(
       this,
@@ -87,6 +98,7 @@ export class DatabaseClusterConstruct extends Construct {
       {
         credentials,
         storageEncryptionKey,
+        parameterGroup,
         copyTagsToSnapshot: true,
         deletionProtection: false,
         storageEncrypted: true,
@@ -123,14 +135,6 @@ export class DatabaseClusterConstruct extends Construct {
       }
     );
 
-    // Set up secret rotation for the database
-    new SecretRotation(this, this.getResourceIdentifier("SecretRotation"), {
-      secret: secret,
-      application: SecretRotationApplication.MYSQL_ROTATION_SINGLE_USER,
-      vpc: this.vpc,
-      target: databaseCluster,
-    });
-
     // Apply scaling configuration to the database cluster
     Aspects.of(databaseCluster).add({
       visit(node) {
@@ -141,6 +145,15 @@ export class DatabaseClusterConstruct extends Construct {
           };
         }
       },
+    });
+
+    // Set up secret rotation for the database
+    new SecretRotation(this, this.getResourceIdentifier("SecretRotation"), {
+      secret: secret,
+      application: SecretRotationApplication.MYSQL_ROTATION_SINGLE_USER,
+      vpc: this.vpc,
+      target: databaseCluster,
+      automaticallyAfter: Duration.days(PASSWORD_ROTATION_DAYS),
     });
 
     // Create a database proxy for the cluster
