@@ -33,7 +33,13 @@ const PASSWORD_LENGTH = 30;
 const DATABASE_USER = "admin";
 const DATABASE_PORT = 3306;
 
-type DatabaseClusterConstructProps = {
+/**
+ * Properties for the DatabaseClusterConstruct.
+ * This type defines the structure for the properties required to create a new DatabaseClusterConstruct.
+ *
+ * @property {IVpc} vpc - The virtual private cloud (VPC) where the database cluster will be deployed.
+ */
+export type DatabaseClusterConstructProps = {
   vpc: IVpc;
 };
 
