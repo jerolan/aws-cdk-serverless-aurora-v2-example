@@ -1,15 +1,16 @@
 import { Aspects, Duration, RemovalPolicy } from "aws-cdk-lib";
 import {
   IVpc,
-  InstanceType,
   Peer,
   Port,
   SecurityGroup,
+  SubnetType,
 } from "aws-cdk-lib/aws-ec2";
 import { Key } from "aws-cdk-lib/aws-kms";
 import {
   AuroraMysqlEngineVersion,
   CfnDBCluster,
+  ClusterInstance,
   Credentials,
   DatabaseCluster,
   DatabaseClusterEngine,
@@ -32,6 +33,7 @@ type DatabaseClusterConstructProps = {
 
 export class DatabaseClusterConstruct extends Construct {
   readonly identifier: string = "DatabaseClusterConstruct";
+  readonly publiclyAccessible: boolean = true;
   readonly vpc: IVpc;
   props: DatabaseClusterConstructProps;
 
@@ -59,23 +61,33 @@ export class DatabaseClusterConstruct extends Construct {
         copyTagsToSnapshot: true,
         deletionProtection: false,
         storageEncrypted: true,
+        vpc: props.vpc,
         port: DATABASE_PORT,
+        securityGroups: [securityGroup],
         clusterIdentifier: this.getResourceIdentifier("DatabaseCluster"),
         defaultDatabaseName: this.getResourceName("DatabaseCluster"),
         removalPolicy: RemovalPolicy.SNAPSHOT,
+        vpcSubnets: {
+          subnetType: SubnetType.PUBLIC,
+        },
         engine: DatabaseClusterEngine.auroraMysql({
           version: AuroraMysqlEngineVersion.VER_3_02_0,
         }),
-        instanceProps: {
-          autoMinorVersionUpgrade: true,
-          instanceType: new InstanceType("serverless"),
-          securityGroups: [securityGroup],
-          vpc: props.vpc,
-          publiclyAccessible: true,
-          vpcSubnets: props.vpc.selectSubnets({
-            subnets: [...props.vpc.privateSubnets, ...this.vpc.publicSubnets],
-          }),
-        },
+        writer: ClusterInstance.serverlessV2(
+          this.getResourceIdentifier("WriterClusterInstance"),
+          {
+            publiclyAccessible: this.publiclyAccessible,
+          }
+        ),
+        readers: [
+          ClusterInstance.serverlessV2(
+            this.getResourceIdentifier("ReaderClusterInstance"),
+            {
+              publiclyAccessible: this.publiclyAccessible,
+              scaleWithWriter: true,
+            }
+          ),
+        ],
         backup: {
           retention: Duration.days(BACKUP_RETENTION_DAYS),
         },
@@ -93,17 +105,13 @@ export class DatabaseClusterConstruct extends Construct {
       },
     });
 
-    // const proxy = new DatabaseProxy(
-    //   this,
-    //   this.getResourceIdentifier("DatabaseProxy"),
-    //   {
-    //     proxyTarget: ProxyTarget.fromCluster(databaseCluster),
-    //     secrets: [secret],
-    //     vpc: props.vpc,
-    //   }
-    // );
-
-    // proxy.grantConnect(roleLambda, "admin"); // Grant the role connection access to the DB Proxy for database user 'admin'.
+    // new DatabaseProxy(this, this.getResourceIdentifier("DatabaseProxy"), {
+    //   dbProxyName: this.getResourceName("DatabaseProxy"),
+    //   proxyTarget: ProxyTarget.fromCluster(databaseCluster),
+    //   secrets: [secret],
+    //   vpc: this.props.vpc,
+    //   requireTLS: true,
+    // });
 
     // TODO: add rotation lambda
     // serverlessCluster.addRotationSingleUser({
