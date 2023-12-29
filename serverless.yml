@@ -1,0 +1,15 @@
+service: aws-node-project
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  eventBridge:
+    useCloudFormation: true
+
+functions:
+  stripeAuthorizer:
+    handler: auth.handler
+
+plugins:
+  - serverless-lift
