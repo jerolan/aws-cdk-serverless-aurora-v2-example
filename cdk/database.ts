@@ -18,6 +18,11 @@ import {
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 import { camelCase } from "lodash";
+import { DatabaseProxy, ProxyTarget } from "aws-cdk-lib/aws-rds";
+import {
+  SecretRotation,
+  SecretRotationApplication,
+} from "aws-cdk-lib/aws-secretsmanager";
 
 const DATABASE_MIN_CAPACITY = 1;
 const DATABASE_MAX_CAPACITY = 16;
@@ -94,6 +99,13 @@ export class DatabaseClusterConstruct extends Construct {
       }
     );
 
+    // new SecretRotation(this, "SecretRotation", {
+    //   secret: secret,
+    //   application: SecretRotationApplication.MYSQL_ROTATION_SINGLE_USER,
+    //   vpc: this.vpc,
+    //   target: databaseCluster,
+    // });
+
     Aspects.of(databaseCluster).add({
       visit(node) {
         if (node instanceof CfnDBCluster) {
@@ -105,22 +117,13 @@ export class DatabaseClusterConstruct extends Construct {
       },
     });
 
-    // new DatabaseProxy(this, this.getResourceIdentifier("DatabaseProxy"), {
-    //   dbProxyName: this.getResourceName("DatabaseProxy"),
-    //   proxyTarget: ProxyTarget.fromCluster(databaseCluster),
-    //   secrets: [secret],
-    //   vpc: this.props.vpc,
-    //   requireTLS: true,
-    // });
-
-    // TODO: add rotation lambda
-    // serverlessCluster.addRotationSingleUser({
-    //   automaticallyAfter: Duration.days(PASSWORD_ROTATION_DAYS),
-    //   excludeCharacters: "\"@/\\ '",
-    //   vpcSubnets: {
-    //     subnetType: SubnetType.PRIVATE_ISOLATED,
-    //   },
-    // });
+    new DatabaseProxy(this, this.getResourceIdentifier("DatabaseProxy"), {
+      dbProxyName: this.getResourceName("DatabaseProxy"),
+      proxyTarget: ProxyTarget.fromCluster(databaseCluster),
+      secrets: [secret],
+      vpc: this.props.vpc,
+      requireTLS: true,
+    });
   }
 
   private createSecurityGroup() {
@@ -145,7 +148,7 @@ export class DatabaseClusterConstruct extends Construct {
   }
 
   private createSecret() {
-    const secret = new Secret(this, this.getResourceIdentifier("Secret"), {
+    return new Secret(this, this.getResourceIdentifier("Secret"), {
       secretName: this.getResourceName("Secret"),
       generateSecretString: {
         excludeCharacters: "\"@/\\ '",
@@ -156,12 +159,6 @@ export class DatabaseClusterConstruct extends Construct {
         }),
       },
     });
-
-    // secret.addRotationSchedule(this.getResourceIdentifier("RotationSchedule"), {
-    //   automaticallyAfter: Duration.days(PASSWORD_ROTATION_DAYS),
-    // });
-
-    return secret;
   }
 
   private createEncryptionKey() {
