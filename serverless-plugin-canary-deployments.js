@@ -27,36 +27,22 @@ module.exports = class ServerlessPluginCanaryDeployments {
     const template =
       this.#serverless.service.provider.compiledCloudFormationTemplate;
     const functionKeys = Object.keys(this.#serverless.service.functions);
+    const functionLogicalIdToAliasMap = {};
 
     for (const functionKey of functionKeys) {
       const $function = this.#serverless.service.functions[functionKey];
       const functionLogicalId =
         this.provider.naming.getLambdaLogicalId(functionKey);
-
       const aliasLogicalId = `${functionLogicalId}Alias`;
-
-      let aliasResource = {
-        Type: "AWS::Lambda::Alias",
-        Properties: {
-          FunctionName: { Ref: functionLogicalId },
-          FunctionVersion: DEFAULT_VERSION,
-          Name: DEFAULT_NAME,
-        },
-      };
+      let aliasResource;
 
       try {
-        // TODO: implement exponential backoff
         const response = await this.provider.request(
           "Lambda",
           "listVersionsByFunction",
-          {
-            FunctionName: $function.name,
-          }
+          { FunctionName: $function.name }
         );
-
-        const versions = response.Versions;
-        const currentVersion = versions[versions.length - 1];
-
+        const currentVersion = response.Versions[response.Versions.length - 1];
         aliasResource = {
           Type: "AWS::Lambda::Alias",
           Properties: {
@@ -67,13 +53,24 @@ module.exports = class ServerlessPluginCanaryDeployments {
           },
         };
       } catch {
-        // do-nothing
+        aliasResource = {
+          Type: "AWS::Lambda::Alias",
+          Properties: {
+            FunctionName: { Ref: functionLogicalId },
+            FunctionVersion: DEFAULT_VERSION,
+            Name: DEFAULT_NAME,
+          },
+        };
       } finally {
         template.Resources[aliasLogicalId] = aliasResource;
+        functionLogicalIdToAliasMap[functionLogicalId] = aliasLogicalId;
       }
-
-      this.#replaceFunctionReferencesWithAlias(template, functionLogicalId);
     }
+
+    this.#replaceFunctionReferencesWithAlias(
+      template,
+      functionLogicalIdToAliasMap
+    );
   }
 
   async #lazyVersionApply() {
@@ -101,7 +98,7 @@ module.exports = class ServerlessPluginCanaryDeployments {
     }
   }
 
-  #replaceFunctionReferencesWithAlias(template, functionLogicalId) {
+  #replaceFunctionReferencesWithAlias(template, functionLogicalIdToAliasMap) {
     const replaceReferences = (obj) => {
       if (typeof obj !== "object" || obj == null) {
         return;
@@ -109,14 +106,16 @@ module.exports = class ServerlessPluginCanaryDeployments {
 
       for (const key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
-          if (key === "Fn::GetAtt" && obj[key][0] === functionLogicalId) {
-            // Replace 'GetAtt' reference with alias
-            obj[key] = {
-              "Fn::Join": [
-                ":",
-                [{ "Fn::GetAtt": [functionLogicalId, "Arn"] }, DEFAULT_NAME],
-              ],
-            };
+          if (key === "Fn::GetAtt") {
+            const logicalId = obj[key][0];
+            if (functionLogicalIdToAliasMap[logicalId]) {
+              obj[key] = {
+                "Fn::Join": [
+                  ":",
+                  [{ "Fn::GetAtt": [logicalId, "Arn"] }, DEFAULT_NAME],
+                ],
+              };
+            }
           } else if (typeof obj[key] === "object") {
             replaceReferences(obj[key]); // Recursive call for nested objects and arrays
           }
