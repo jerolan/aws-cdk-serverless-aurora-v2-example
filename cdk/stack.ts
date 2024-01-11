@@ -5,12 +5,10 @@ import { Construct } from "constructs";
 import { DatabaseClusterConstruct } from "./database";
 
 /**
- * Properties for the DatabaseStack.
- * Extends StackProps from AWS CDK to include specific properties for creating a database stack.
- * This type specifies additional configuration required to initialize the DatabaseStack.
- *
- * @property {string} vpcName - The name of the VPC in which the database will be deployed.
- * @property {string} databaseName - The name to assign to the database.
+ * Define las propiedades específicas para la creación de un stack de base de datos.
+ * Extiende StackProps de AWS CDK para incluir propiedades específicas como el nombre de la VPC y de la base de datos.
+ * @property {string} vpcName - El nombre de la VPC donde se desplegará la base de datos.
+ * @property {string} databaseName - El nombre que se asignará a la base de datos.
  */
 export type DatabaseStackProps = StackProps & {
   vpcName: string;
@@ -18,24 +16,28 @@ export type DatabaseStackProps = StackProps & {
 };
 
 /**
- * Represents a stack that creates AWS infrastructure for a database using AWS CDK.
- * This class extends the Stack class from AWS CDK and is responsible for setting up the necessary components
- * for a database, including a VPC and a DatabaseClusterConstruct.
+ * Clase que representa un stack para crear infraestructura de AWS para una base de datos usando AWS CDK.
+ * Extiende la clase Stack de AWS CDK y se encarga de configurar los componentes necesarios para una base de datos,
+ * incluyendo una VPC y un DatabaseClusterConstruct.
  *
- * @param {Construct} scope - The scope in which to define this construct, typically an App or a Stage.
- * @param {string} id - A unique identifier for the stack.
- * @param {DatabaseStackProps} props - Custom stack properties including VPC name and database name.
+ * @param {Construct} scope - El ámbito en el que se define este constructo, típicamente una App o un Stage.
+ * @param {string} id - Un identificador único para el stack.
+ * @param {DatabaseStackProps} props - Propiedades personalizadas del stack incluyendo el nombre de la VPC y de la base de datos.
  */
 export class DatabaseStack extends Stack {
+  // Identificador único para el stack de base de datos
   readonly identifier: string = "DatabaseStack";
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
 
+    // Busca y recupera una VPC existente por su nombre
     const vpc = Vpc.fromLookup(this, this.getResourceIdentifier("Vpc"), {
       vpcName: props.vpcName,
     });
 
+    // Crea una nueva instancia de DatabaseClusterConstruct, pasando la VPC recuperada
+    // y otros parámetros necesarios para configurar el cluster de base de datos
     new DatabaseClusterConstruct(
       this,
       this.getResourceIdentifier("DatabaseClusterConstruct"),
@@ -45,6 +47,13 @@ export class DatabaseStack extends Stack {
     );
   }
 
+  /**
+   * Genera un identificador único para los recursos dentro del stack.
+   * Concatena el identificador del stack con un sufijo específico del recurso.
+   *
+   * @param {string} resourceSufix - El sufijo para el identificador del recurso.
+   * @return {string} El identificador completo del recurso.
+   */
   private getResourceIdentifier(resourceSufix: string) {
     return `${this.identifier}${resourceSufix}`;
   }

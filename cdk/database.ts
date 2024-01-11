@@ -190,10 +190,19 @@ export class DatabaseClusterConstruct extends Construct {
     return securityGroup;
   }
 
+  /**
+   * Crea un secreto para las credenciales de la base de datos.
+   * Utiliza AWS Secrets Manager para generar y almacenar de manera segura las credenciales,
+   * como el nombre de usuario y la contraseña.
+   *
+   * @return {Secret} El secreto creado para almacenar las credenciales de la base de datos.
+   */
   private createSecret() {
+    // Crea y retorna un nuevo secreto con configuración para generar la contraseña
     return new Secret(this, this.getResourceIdentifier("Secret"), {
       secretName: this.getResourceName("Secret"),
       generateSecretString: {
+        // Configuración para la generación de la contraseña
         excludeCharacters: "\"@/\\ '",
         generateStringKey: "password",
         passwordLength: PASSWORD_LENGTH,
@@ -204,7 +213,15 @@ export class DatabaseClusterConstruct extends Construct {
     });
   }
 
+  /**
+   * Crea una clave de cifrado para el almacenamiento de la base de datos.
+   * Utiliza AWS Key Management Service (KMS) para crear una clave que será usada
+   * para cifrar los datos almacenados en la base de datos.
+   *
+   * @return {Key} La clave KMS creada para el cifrado del almacenamiento.
+   */
   private createEncryptionKey() {
+    // Crea y retorna una nueva clave de KMS con rotación de clave habilitada
     return new Key(this, this.getResourceIdentifier("Key"), {
       enableKeyRotation: true,
     });

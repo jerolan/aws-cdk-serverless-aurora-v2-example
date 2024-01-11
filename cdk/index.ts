@@ -12,10 +12,15 @@ import "source-map-support/register";
 import { App } from "aws-cdk-lib";
 import { DatabaseStack } from "./stack";
 
+// Establece una variable de entorno para el nombre del servicio
 process.env.SERVICE_NAME = "aws-node-project";
 
+// Crea una nueva aplicación CDK
 const app = new App();
 
+// Crea un nuevo stack de base de datos, pasando la aplicación CDK, el identificador del stack
+// y un objeto de propiedades que incluye el nombre de la VPC, el nombre de la base de datos
+// y el entorno (cuenta y región de AWS)
 new DatabaseStack(app, "DatabaseStack", {
   vpcName: "vpc-0878da24212b5aeb5",
   databaseName: "myDatabase",
