@@ -15,7 +15,7 @@ functions:
           topicName: MyCustomTopic
 
 constructs:
-  myQueue:
+  myueue:
     type: queue
     worker:
       handler: index.handler
