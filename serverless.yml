@@ -9,6 +9,17 @@ provider:
 functions:
   myService:
     handler: index.handler
+    events:
+      - sns:
+          arn: !Ref SuperTopic
+          topicName: MyCustomTopic
 
 plugins:
   - ./serverless-plugin-canary-deployments
+
+resources:
+  Resources:
+    SuperTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: MyCustomTopic
