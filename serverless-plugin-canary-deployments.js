@@ -66,27 +66,13 @@ module.exports = class ServerlessPluginCanaryDeployments {
             Description: `Alias for ${functionKey}`,
           },
         };
+      } catch {
+        // do-nothing
       } finally {
         template.Resources[aliasLogicalId] = aliasResource;
       }
 
-      for (const resourceKey in template.Resources) {
-        const resource = template.Resources[resourceKey];
-        if (resource.Type === "AWS::Lambda::Permission") {
-          if (
-            resource.Properties.FunctionName["Fn::GetAtt"] &&
-            resource.Properties.FunctionName["Fn::GetAtt"][0] ===
-              functionLogicalId
-          ) {
-            resource.Properties.FunctionName = {
-              "Fn::Join": [
-                ":",
-                [{ "Fn::GetAtt": [functionLogicalId, "Arn"] }, DEFAULT_NAME],
-              ],
-            };
-          }
-        }
-      }
+      this.#replaceFunctionReferencesWithAlias(template, functionLogicalId);
     }
   }
 
@@ -113,5 +99,31 @@ module.exports = class ServerlessPluginCanaryDeployments {
         FunctionVersion: latestVersion.Version,
       });
     }
+  }
+
+  #replaceFunctionReferencesWithAlias(template, functionLogicalId) {
+    const replaceReferences = (obj) => {
+      if (typeof obj !== "object" || obj == null) {
+        return;
+      }
+
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          if (key === "Fn::GetAtt" && obj[key][0] === functionLogicalId) {
+            // Replace 'GetAtt' reference with alias
+            obj[key] = {
+              "Fn::Join": [
+                ":",
+                [{ "Fn::GetAtt": [functionLogicalId, "Arn"] }, DEFAULT_NAME],
+              ],
+            };
+          } else if (typeof obj[key] === "object") {
+            replaceReferences(obj[key]); // Recursive call for nested objects and arrays
+          }
+        }
+      }
+    };
+
+    replaceReferences(template);
   }
 };

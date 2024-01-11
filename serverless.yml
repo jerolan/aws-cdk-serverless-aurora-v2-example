@@ -14,7 +14,14 @@ functions:
           arn: !Ref SuperTopic
           topicName: MyCustomTopic
 
+constructs:
+  myQueue:
+    type: queue
+    worker:
+      handler: index.handler
+
 plugins:
+  - serverless-lift
   - ./serverless-plugin-canary-deployments
 
 resources:
